@@ -24,6 +24,10 @@ merge-tool-edits-conflict-markers = true
 program = "difft"
 diff-args = ["--color=always", "$left", "$right"]
 
+[merge-tools.nvimdiff]
+program = "nvim"
+merge-args = ["-c", "JJdiff", "-d", "$left", "$output", "$right"]
+
 [ui]
 # pager = ["delta", "--config=/Users/dzyla/.config/jj/conf.d/delta.gitconfig", "--pager", "less -FRX"]
 
