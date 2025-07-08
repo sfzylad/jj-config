@@ -29,18 +29,16 @@ diff-args = ["--color=always", "$left", "$right"]
 
 # pager = "delta"
 # pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
-# diff-formatter = ":git"
 # diff-formatter = "difft"
 # diff-formatter = "vimdiff"
+
+diff-formatter = ":git"
 diff-editor = "vimdiff"
 default-command = "log"
 should-sign-off = true
 
 commit_trailers = '''
 format_signed_off_by_trailer(self)'''
-
-[ui.diff]
-format = "git"
 
 [git]
 sign-on-push = false
