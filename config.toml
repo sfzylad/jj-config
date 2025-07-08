@@ -1,0 +1,329 @@
+"$schema" = "https://jj-vcs.github.io/jj/latest/config-schema.json"
+
+[user]
+name = "Dominik Zyla"
+email = "22446399+sfzylad@users.noreply.github.com"
+
+[merge-tools.diffconflicts]
+program = "nvim"
+merge-args = [
+    "-c", "let g:jj_diffconflicts_marker_length=$marker_length",
+    "-c", "JJDiffConflicts!", "$output", "$base", "$left", "$right",
+]
+merge-tool-edits-conflict-markers = true    # See below for an explanation
+
+[merge-tools.vimdiff]
+program = "nvim"
+merge-args = ["-f", "-d", "$output", "-M",
+    "$left", "$base", "$right",
+    "-c", "wincmd J", "-c", "set modifiable",
+    "-c", "set write"]
+merge-tool-edits-conflict-markers = true
+
+[merge-tools.difft]
+program = "difft"
+diff-args = ["--color=always", "$left", "$right"]
+
+[ui]
+# pager = ["delta", "--config=/Users/dzyla/.config/jj/conf.d/delta.gitconfig", "--pager", "less -FRX"]
+
+# pager = "delta"
+# pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
+# diff-formatter = ":git"
+# diff-formatter = "difft"
+# diff-formatter = "vimdiff"
+diff-editor = "vimdiff"
+default-command = "log"
+should-sign-off = true
+
+commit_trailers = '''
+format_signed_off_by_trailer(self)'''
+
+[ui.diff]
+format = "git"
+
+[git]
+sign-on-push = false
+push-bookmark-prefix = "dzyla/push-"
+private-commits = 'blacklist()'
+write-change-id-header = true
+
+[[--scope]]
+--when.repositories = ["~/code"]
+
+[revsets]
+log = 'stack(@)'
+
+# Prioritize megamerges so that they always appear on the 'left-most' side of
+# the graph.
+log-graph-prioritize = 'coalesce(megamerge(), trunk())'
+
+[revset-aliases]
+# Useful on Windows. Technically conflicts with any bookmark/tag named 'at', but
+# seems OK...
+'at' = '@'
+
+'user(x)' = 'author(x) | committer(x)'
+
+# By default, show the repo trunk, the remote bookmarks, and all remote tags. We
+# don't want to change these in most cases, but in some repos it's useful.
+'immutable_heads()' = 'present(trunk()) | remote_bookmarks() | tags()'
+
+# Useful to ignore this, in many repos. For repos like `jj` these are
+# consistently populated with a bunch of auto-generated commits, so ignoring it
+# is often nice.
+'gh_pages()' = 'ancestors(remote_bookmarks(exact:"gh-pages"))'
+
+# trunk() by default resolves to the latest 'main'/'master' remote bookmark. May
+# require customization for repos like nixpkgs.
+'trunk()' = 'latest((present(main) | present(master)) & remote_bookmarks())'
+
+# Private and WIP commits that should never be pushed anywhere. Often part of
+# work-in-progress merge stacks.
+'wip()' = 'description(glob:"wip:*")'
+'private()' = 'description(glob:"private:*")'
+'blacklist()' = 'wip() | private()'
+
+# stack(x, n) is the set of mutable commits reachable from 'x', with 'n'
+# parents. 'n' is often useful to customize the display and return set for
+# certain operations. 'x' can be used to target the set of 'roots' to traverse,
+# e.g. @ is the current stack.
+'stack()' = 'ancestors(reachable(@, mutable()), 2)'
+'stack(x)' = 'ancestors(reachable(x, mutable()), 2)'
+'stack(x, n)' = 'ancestors(reachable(x, mutable()), n)'
+
+# The current set of "open" works. It is defined as:
+#
+# - given the set of commits not in trunk, that are written by me,
+# - calculate the given stack() for each of those commits
+#
+# n = 1, meaning that nothing from `trunk()` is included, so all resulting
+# commits are mutable by definition.
+'open()' = 'stack(trunk().. & mine(), 1)'
+
+# the set of 'ready()' commits. defined as the set of open commits, but nothing
+# that is blacklisted or any of their children.
+#
+# often used with gerrit, which you can use to submit whole stacks at once:
+#
+# - jj gerrit send -r 'ready()' --dry-run
+'ready()' = 'open() ~ blacklist()::'
+
+# Find the megamerge. Mostly useful in combination with other aliases, primarily
+# 'sandwich'. Normally when there's only one megamerge, sandwich works perfectly
+# fine and is basically "magic". However, there are more complex cases; consider
+# something like this which represents a forked repository of an upstream:
+#
+#
+#    ----> P1 ... Pn -----------\
+#   /                            \
+#  /---> X --\           (main)   \
+# B          M1 --> T1 ... Tn --> M2 --> @
+#  \---> Y --/
+#
+# X and Y are typical features on top of base B, combined inside megamerge M1.
+# However, we may want changes T1...Tn to go on top of M1, because (in my case)
+# they're custom and will never go upstream, but are correctly published as part
+# of the fork; Tn is where the main bookmark points. Finally, we have changes P1
+# ... Pn which are private and should never be pushed upstream at all.
+#
+# In this case, sandwich will fail because 'reachable(stack(), merges())' will
+# resolve to {M1, M2}, which is an invalid argument for 'rebase -B' due to not
+# having an all: prefix modifier. So to handle that case, we allow the user
+# to either specify the merge via literal tag "megamerge". In this case if we
+# 'bookmark set megamerge -r M1' then sandwich will always work correctly.
+'megamerge()' = 'coalesce(present(megamerge), reachable(stack(), merges()))'
+
+"interesting" = '''
+  ancestors(reachable(
+    mine() | @,
+    mutable(),
+  ), 2)
+  | trunk() | @
+'''
+
+# 'no_pr_merges(r)' = 'r ~ description(glob:"Merge pull request #*")'
+'no_mr_merges(r)' = 'r ~ description(glob:"Merge branch*")'
+
+
+[aliases]
+# Convenient shorthands.
+# d = ["diff"]
+d = ["pager", "diff"]
+s = ["pager", "show"]
+# s = ["show"]
+ll = ["log", "-T", "builtin_log_detailed"]
+nt = ["new", "trunk()"]
+
+# EXPERIMENT: CI integration
+gitlab = ["util", "exec", "--", "jj-helper", "gitlab"]
+pager = ["util", "exec", "--", "jj-helper", "pager"]
+
+# EXPERIMENT: ultra-generalized show
+examine = ["log", "-T", "builtin_log_detailed", "-p", "-r"]
+
+open = ["log", "-r", "open()"]
+
+# Make it more git-like
+blame = ["file", "annotate"]
+
+# Retrunk a series. Typically used as `jj retrunk -s ...`, and notably can be
+# used with open:
+# - jj retrunk -s 'all:roots(open())'
+retrunk = ["rebase", "-d", "trunk()"]
+
+# Retrunk the current stack of work.
+reheat = ["rebase", "-d", "trunk()", "-s", "all:roots(trunk()..stack(@))"]
+
+# 'jj sandwich xyz' to move xyz into the megamerge in parallel to everything
+# else. See notes on 'megamerge()' above for how it's resolved.
+sandwich = [ "rebase", "-B", "megamerge()", "-A", "trunk()", "-r"]
+
+# Take content from any change, and move it into @.
+# - jj consume xyz path/to/file`
+consume = ["squash", "--into", "@", "--from"]
+
+# Eject content from @ into any other change.
+# - jj eject xyz --interactive
+eject = ["squash", "--from", "@", "--into"]
+
+# Find the closest ancestor with a bookmark pointing at it, and move it to the
+# parent of the working copy.
+tug = ["bookmark", "move", "--from", "heads(::@- & bookmarks())", "--to", "@-"]
+
+[colors]
+# Base customizations
+"author" = "blue"
+"normal change_id" = { bold = true, fg = "magenta" }
+"immutable change_id" = { bold = false, fg = "bright cyan" }
+
+# Used by log node template
+"node" = { bold = true }
+"node elided" = { fg = "bright black" }
+"node working_copy" = { fg = "green" }
+"node conflict" = { fg = "red" }
+"node immutable" = { fg = "bright cyan" }
+"node wip" = { fg = "yellow" }
+"node normal" = { bold = false }
+
+# Used in other various templates
+"text link" = { bold = true, fg = "magenta" }
+"text warning" = { bold = true, fg = "red" }
+
+[template-aliases]
+# Code to hyperlink something for the terminal.
+# FIXME (upstream): should this go upstream?
+'hyperlink(url, text)' = '''
+  concat(
+    raw_escape_sequence("\e]8;;" ++ url ++ "\e\\"),
+    label("text link", text),
+    raw_escape_sequence("\e]8;;\e\\"),
+  )
+'''
+
+# Basic customizations.
+'format_short_signature(signature)' = '"<" ++ if(signature.email(), signature.email(), label("text warning", "NO EMAIL")) ++ ">"'
+'format_timestamp(ts)' = '"[" ++ ts.ago() ++ "]"'
+'render_bookmarks(commit)' = '''
+  commit.bookmarks().map(|b|
+    if(b.remote(),
+      b,
+      hyperlink(gh_pr_base() ++ "/tree/" ++ b.name(), b),
+    )
+  )
+'''
+
+'gitlab' = '''
+label("node",
+  coalesce(
+    if(self.contained_in("present(ci_failures)"), "⌛"),
+    if(self.contained_in("present(ci_failure)"), "❌"),
+    if(self.contained_in("present(ci_success)"), "✅"),
+    builtin_log_comfortable
+  )
+)
+
+'''
+
+log_oneline = '''
+if(root,
+  format_root_commit(self),
+  label(if(current_working_copy, "working_copy"),
+    concat(
+      separate(" ",
+        format_short_change_id_with_hidden_and_divergent_info(self),
+        if(self.contained_in("present(ci_failures)"), "⌛"),
+        if(self.contained_in("present(ci_failure)"), "❌"),
+        if(self.contained_in("present(ci_canceled)"), "💀"),
+        if(self.contained_in("present(ci_success)"), "✅"),
+        author,
+        format_timestamp(commit_timestamp(self)),
+        bookmarks,
+        tags,
+        working_copies,
+        if(git_head, label("git_head", "git_head()")),
+        format_short_commit_id(commit_id),
+        if(conflict, label("conflict", "conflict")),
+        if(config("ui.show-cryptographic-signatures").as_boolean(),
+          format_short_cryptographic_signature(signature)),
+        if(empty, label("empty", "(empty)")),
+        if(description,
+          description.first_line(),
+          label(if(empty, "empty"), description_placeholder),
+        ),
+      ) ++ "\n",
+    ),
+  )
+)
+'''
+
+'has_ghpr_url(s)' = 's.contains("GH-PR: ")'
+'get_ghpr_url(s)' = '''
+  s.lines().filter(|l| l.starts_with("GH-PR: ")).map(|l| l.remove_prefix("GH-PR: ")).join("")
+'''
+
+'has_change_id(s)' = 's.contains("Change-Id: I")'
+'gerrit_id(c, n)' = '"I" ++ raw_escape_sequence(c.normal_hex().substr(0, n)) ++ if(n > 31, "6a6a636c")'
+'gerrit_id(c)' = 'gerrit_id(c, 31)'
+
+'gh_pr_base()' = '"undefined"'
+
+
+[templates]
+op_log_node = 'if(current_operation, "@", "◉")'
+log = 'builtin_log_comfortable'
+
+log_node = '''
+coalesce(
+  if(!self, label("elided", "%")),
+  if(self.contained_in("present(ci_pending)"), "⌛"),
+  if(self.contained_in("present(ci_failures)"), "❌"),
+  if(self.contained_in("present(ci_canceled)"), "💀"),
+  if(self.contained_in("present(ci_success)"), "✅"),
+  if(current_working_copy, label("working_copy", "◉")),
+  if(conflict, label("conflict", "x")),
+  if(immutable, label("immutable", "◆")),
+  if(description.starts_with("wip: "), label("wip", "!")),
+  if(description.starts_with("private: "), label("private", "!")),
+  builtin_log_node
+)
+'''
+
+# Draft commit description. Includes:
+# - Signed-off-by lines
+draft_commit_description = '''
+concat(
+  description,
+  "\n",
+  if(
+    config("ui.should-sign-off").as_boolean() && !description.contains("Signed-off-by: " ++ author.name()),
+    "\nSigned-off-by: " ++ author.name() ++ " <" ++ author.email() ++ ">",
+  ),
+  "\n",
+  surround(
+    "\nJJ: This commit contains the following changes:\n", "",
+    indent("JJ:     ", diff.git()),
+  ),
+)
+'''
+

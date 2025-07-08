@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+JJ_CONF_D="${HOME}/.config/jj/conf.d"
+THEME_FILE="${HOME}/tmp/.theme"
+HEADER="--when.repositories = [ \"${PWD}\" ]"
+
+preflight_checks() {
+    config_name=${PWD##*/}
+    mkdir -p ${JJ_CONF_D}
+    if [[ ! -e "${JJ_CONF_D}/${config_name}.toml" ]]; then
+        echo "${JJ_CONF_D}/${config_name}.toml doesn't exist, creating it."
+        echo "${HEADER}" > "${JJ_CONF_D}/${config_name}.toml"
+    fi
+}
+
+ci_status() {
+    refs=$1
+    config_name=${PWD##*/}
+    jj-ci-resolver  -f ~/.config/jj/conf.d/${config_name}.toml ${refs[@]} -r $(jj git remote list |awk '{print $2}')
+}
+
+run_gitlab() {
+    read -a refs <<< $(jj log "$@" -T '"--git-refs " ++ coalesce(commit_id) ++ " "' --no-graph)
+
+    preflight_checks
+    ci_status ${refs}
+    jj log "$@"
+}
+
+set_pager_theme() {
+    if [[ -e ${THEME_FILE} ]]; then
+        theme=$(grep "dark\|light" ${THEME_FILE})
+        if [[ -z ${theme} ]]; then
+            echo "theme not set"
+            exit 1
+        fi
+        PAGER="delta ${theme}" jj "$@"
+    fi
+}
+
+case "$1" in
+    gitlab) shift 1; run_gitlab "$@"
+    ;;
+    pager) shift 1; set_pager_theme "$@"
+    ;;
+    *) echo "unrecongised subcommand" && exit 2
+    ;;
+esac
+
