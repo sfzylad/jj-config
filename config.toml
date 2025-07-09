@@ -14,7 +14,7 @@ merge-tool-edits-conflict-markers = true    # See below for an explanation
 
 [merge-tools.vimdiff]
 program = "nvim"
-merge-args = ["-f", "-d", "$output", "-M",
+merge-args = ["-f", "-d", "$output", "-M", "-c", "DirDiff",
     "$left", "$base", "$right",
     "-c", "wincmd J", "-c", "set modifiable",
     "-c", "set write"]
@@ -29,15 +29,9 @@ program = "nvim"
 merge-args = ["-c", "JJdiff", "-d", "$left", "$output", "$right"]
 
 [ui]
-# pager = ["delta", "--config=/Users/dzyla/.config/jj/conf.d/delta.gitconfig", "--pager", "less -FRX"]
-
-# pager = "delta"
-# pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
-# diff-formatter = "difft"
-# diff-formatter = "vimdiff"
-
+pager = "delta"
 diff-formatter = ":git"
-diff-editor = "vimdiff"
+diff-editor = "nvimdiff"
 default-command = "log"
 should-sign-off = true
 
