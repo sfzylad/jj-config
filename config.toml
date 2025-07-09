@@ -29,8 +29,9 @@ program = "nvim"
 merge-args = ["-c", "JJdiff", "-d", "$left", "$output", "$right"]
 
 [ui]
-pager = "delta"
-diff-formatter = ":git"
+# pager = "delta"
+diff-formatter = "git"
+diff.format = "git"
 diff-editor = "nvimdiff"
 default-command = "log"
 should-sign-off = true
