@@ -30,7 +30,7 @@ merge-args = ["-c", "JJdiff", "-d", "$left", "$output", "$right"]
 
 [ui]
 # pager = "delta"
-diff-formatter = "git"
+diff-formatter = ":git"
 diff-editor = "nvimdiff"
 default-command = "log"
 should-sign-off = true
