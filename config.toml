@@ -31,7 +31,6 @@ merge-args = ["-c", "JJdiff", "-d", "$left", "$output", "$right"]
 [ui]
 # pager = "delta"
 diff-formatter = "git"
-diff.format = "git"
 diff-editor = "nvimdiff"
 default-command = "log"
 should-sign-off = true
@@ -41,7 +40,6 @@ format_signed_off_by_trailer(self)'''
 
 [git]
 sign-on-push = false
-push-bookmark-prefix = "dzyla/push-"
 private-commits = 'blacklist()'
 write-change-id-header = true
 
@@ -287,6 +285,7 @@ if(root,
 
 
 [templates]
+git_push_bookmark = '"dzyla/push-" ++ change_id.short()'
 op_log_node = 'if(current_operation, "@", "◉")'
 log = 'builtin_log_comfortable'
 
